@@ -12,4 +12,11 @@ export const parkingApi = {
   exit: (id, payload) => http.post(`/parking/exit/${id}`, payload),
   getInvoices: () => http.get("/invoices"),
   createInvoice: (payload) => http.post("/invoices", payload),
+  getAccount: (plateNumber) => http.get(`/stored-value/account/${plateNumber}`),
+  getAccounts: () => http.get("/stored-value/accounts"),
+  recharge: (payload) => http.post("/stored-value/recharge", payload),
+  getTransactions: (plateNumber) =>
+    plateNumber
+      ? http.get(`/stored-value/transactions?plate_number=${plateNumber}`)
+      : http.get("/stored-value/transactions"),
 };

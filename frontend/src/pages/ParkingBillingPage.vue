@@ -5,8 +5,11 @@ import StatusBadge from "../components/StatusBadge.vue";
 
 const spaces = ref([]);
 const orders = ref([]);
+const cards = ref([]);
 const message = ref("");
 const quote = ref(null);
+const useStoredValue = ref(true);
+const lastSettlement = ref(null);
 const entryForm = reactive({
   plate_number: "",
   space_code: "",
@@ -19,10 +22,20 @@ const calcForm = reactive({
 const freeSpaces = computed(() => spaces.value.filter((space) => ["free", "reserved"].includes(space.status)));
 const parkingOrders = computed(() => orders.value.filter((order) => order.status === "parking"));
 
+function getBalance(plateNumber) {
+  const card = cards.value.find((c) => c.plate_number === plateNumber);
+  return card ? card.balance || 0 : 0;
+}
+
 async function loadData() {
-  const [spaceData, orderData] = await Promise.all([parkingApi.getSpaces(), parkingApi.getOrders()]);
+  const [spaceData, orderData, cardData] = await Promise.all([
+    parkingApi.getSpaces(),
+    parkingApi.getOrders(),
+    parkingApi.getCards(),
+  ]);
   spaces.value = spaceData.items;
   orders.value = orderData.items;
+  cards.value = cardData.items;
   if (!entryForm.space_code && freeSpaces.value[0]) entryForm.space_code = freeSpaces.value[0].code;
 }
 
@@ -43,8 +56,16 @@ async function calculate() {
 }
 
 async function closeOrder(order) {
-  const result = await parkingApi.exit(order.id, { exit_time: new Date().toISOString().slice(0, 16) });
-  message.value = `${order.plate_number} 已结算，金额 ¥${result.amount}`;
+  const result = await parkingApi.exit(order.id, {
+    exit_time: new Date().toISOString().slice(0, 16),
+    use_stored_value: useStoredValue.value,
+  });
+  lastSettlement.value = result;
+  if (result.stored_value_deducted > 0) {
+    message.value = `${order.plate_number} 已结算，原价 ¥${result.original_amount}，储值抵扣 ¥${result.stored_value_deducted}，实付 ¥${result.amount}，账户剩余 ¥${result.remaining_balance}`;
+  } else {
+    message.value = `${order.plate_number} 已结算，金额 ¥${result.amount}`;
+  }
   await loadData();
 }
 
@@ -56,7 +77,13 @@ onMounted(loadData);
     <header class="page-header">
       <div>
         <h2>临时停车计费</h2>
-        <p>登记入场、试算费用并完成离场结算。</p>
+        <p>登记入场、试算费用并完成离场结算，已开通储值账户可自动抵扣。</p>
+      </div>
+      <div class="form-panel" style="padding: 12px 16px; margin: 0;">
+        <label style="display: flex; align-items: center; gap: 8px; margin: 0;">
+          <input type="checkbox" v-model="useStoredValue" style="min-height: auto; width: auto;" />
+          <span style="font-size: 14px;">结算时优先使用储值账户抵扣</span>
+        </label>
       </div>
     </header>
 
@@ -93,6 +120,7 @@ onMounted(loadData);
               <th>车牌</th>
               <th>车位</th>
               <th>入场时间</th>
+              <th>储值余额</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
@@ -103,6 +131,11 @@ onMounted(loadData);
               <td>{{ order.plate_number }}</td>
               <td>{{ order.space_code }}</td>
               <td>{{ order.entry_time }}</td>
+              <td>
+                <strong :class="{ 'balance-positive': getBalance(order.plate_number) > 0 }">
+                  ¥{{ getBalance(order.plate_number) }}
+                </strong>
+              </td>
               <td><StatusBadge :status="order.status" /></td>
               <td><button class="small-button" type="button" @click="closeOrder(order)">离场结算</button></td>
             </tr>

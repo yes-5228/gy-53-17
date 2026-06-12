@@ -63,6 +63,7 @@ def calculate():
 def close_order(order_id):
     data = request.get_json() or {}
     exit_time = data.get("exit_time") or datetime.now().isoformat(timespec="minutes")
+    use_stored_value = data.get("use_stored_value", True)
 
     with get_connection() as conn:
         order = conn.execute("SELECT * FROM parking_orders WHERE id = ?", (order_id,)).fetchone()
@@ -72,13 +73,50 @@ def close_order(order_id):
             return {"message": "订单已结算"}, 409
 
         bill = calculate_fee(order["entry_time"], exit_time)
+        amount = bill["amount"]
+        stored_value_deducted = 0
+        remaining_balance = None
+
+        if use_stored_value and amount > 0:
+            account = conn.execute(
+                "SELECT * FROM stored_value_accounts WHERE plate_number = ?",
+                (order["plate_number"],),
+            ).fetchone()
+            if account and account["balance"] > 0:
+                stored_value_deducted = min(account["balance"], amount)
+                amount = round(amount - stored_value_deducted, 2)
+                remaining_balance = round(account["balance"] - stored_value_deducted, 2)
+                conn.execute(
+                    """
+                    UPDATE stored_value_accounts
+                    SET balance = ?, updated_at = datetime('now', 'localtime')
+                    WHERE id = ?
+                    """,
+                    (remaining_balance, account["id"]),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO stored_value_transactions
+                        (account_id, plate_number, type, amount, balance_after, related_order_id, remark, created_at)
+                    VALUES (?, ?, 'consume', ?, ?, ?, ?, datetime('now', 'localtime'))
+                    """,
+                    (
+                        account["id"],
+                        order["plate_number"],
+                        stored_value_deducted,
+                        remaining_balance,
+                        order_id,
+                        "临停费用自动抵扣",
+                    ),
+                )
+
         conn.execute(
             """
             UPDATE parking_orders
             SET exit_time = ?, duration_hours = ?, amount = ?, status = 'paid'
             WHERE id = ?
             """,
-            (exit_time, bill["duration_hours"], bill["amount"], order_id),
+            (exit_time, bill["duration_hours"], amount, order_id),
         )
         conn.execute(
             """
@@ -90,4 +128,8 @@ def close_order(order_id):
         )
         row = conn.execute("SELECT * FROM parking_orders WHERE id = ?", (order_id,)).fetchone()
 
-    return dict(row)
+    result = dict(row)
+    result["stored_value_deducted"] = stored_value_deducted
+    result["remaining_balance"] = remaining_balance
+    result["original_amount"] = bill["amount"]
+    return result

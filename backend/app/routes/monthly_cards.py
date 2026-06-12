@@ -5,11 +5,28 @@ from ..database import get_connection, rows_to_dicts
 monthly_cards_bp = Blueprint("monthly_cards", __name__)
 
 
+def _attach_balance(conn, cards):
+    plates = [c["plate_number"] for c in cards]
+    if not plates:
+        return cards
+    placeholders = ",".join("?" * len(plates))
+    accounts = conn.execute(
+        f"SELECT * FROM stored_value_accounts WHERE plate_number IN ({placeholders})",
+        plates,
+    ).fetchall()
+    balance_map = {a["plate_number"]: a["balance"] for a in accounts}
+    for card in cards:
+        card["balance"] = balance_map.get(card["plate_number"], 0)
+    return cards
+
+
 @monthly_cards_bp.get("/", strict_slashes=False)
 def list_cards():
     with get_connection() as conn:
         rows = conn.execute("SELECT * FROM monthly_cards ORDER BY id DESC").fetchall()
-    return {"items": rows_to_dicts(rows)}
+        cards = rows_to_dicts(rows)
+        cards = _attach_balance(conn, cards)
+    return {"items": cards}
 
 
 @monthly_cards_bp.post("/", strict_slashes=False)
@@ -18,6 +35,8 @@ def create_card():
     required = ["holder_name", "phone", "plate_number", "start_date", "end_date", "fee"]
     if any(not data.get(field) for field in required):
         return {"message": "月卡信息不完整"}, 400
+
+    initial_balance = float(data.get("initial_balance", 0) or 0)
 
     try:
         with get_connection() as conn:
@@ -38,12 +57,51 @@ def create_card():
                 ),
             )
             row = conn.execute("SELECT * FROM monthly_cards WHERE id = ?", (cur.lastrowid,)).fetchone()
+
+            if initial_balance > 0:
+                existing = conn.execute(
+                    "SELECT * FROM stored_value_accounts WHERE plate_number = ?",
+                    (data["plate_number"],),
+                ).fetchone()
+                if existing:
+                    new_balance = round(existing["balance"] + initial_balance, 2)
+                    conn.execute(
+                        """
+                        UPDATE stored_value_accounts
+                        SET balance = ?, updated_at = datetime('now', 'localtime')
+                        WHERE id = ?
+                        """,
+                        (new_balance, existing["id"]),
+                    )
+                    account_id = existing["id"]
+                else:
+                    acc_cur = conn.execute(
+                        """
+                        INSERT INTO stored_value_accounts
+                            (plate_number, balance, created_at, updated_at)
+                        VALUES (?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                        """,
+                        (data["plate_number"], initial_balance),
+                    )
+                    account_id = acc_cur.lastrowid
+                    new_balance = initial_balance
+
+                conn.execute(
+                    """
+                    INSERT INTO stored_value_transactions
+                        (account_id, plate_number, type, amount, balance_after, remark, created_at)
+                    VALUES (?, ?, 'recharge', ?, ?, ?, datetime('now', 'localtime'))
+                    """,
+                    (account_id, data["plate_number"], initial_balance, new_balance, "办卡时储值"),
+                )
     except Exception as exc:
         if "UNIQUE" in str(exc):
             return {"message": "该车牌已办理月卡"}, 409
         raise
 
-    return dict(row), 201
+    result = dict(row)
+    result["balance"] = initial_balance if initial_balance > 0 else 0
+    return result, 201
 
 
 @monthly_cards_bp.patch("/<int:card_id>")

@@ -67,6 +67,26 @@ def init_db():
                 invoice_no TEXT NOT NULL UNIQUE,
                 status TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS stored_value_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plate_number TEXT NOT NULL UNIQUE,
+                balance REAL NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS stored_value_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id INTEGER NOT NULL,
+                plate_number TEXT NOT NULL,
+                type TEXT NOT NULL,
+                amount REAL NOT NULL,
+                balance_after REAL NOT NULL,
+                related_order_id INTEGER,
+                remark TEXT,
+                created_at TEXT NOT NULL
+            );
             """
         )
 

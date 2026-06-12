@@ -319,6 +319,57 @@ th {
   opacity: 0.6;
 }
 
+.balance-positive {
+  color: #157f63;
+}
+
+.action-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.quick-amounts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-amounts .small-button.active {
+  background: #157f63;
+  color: white;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.tx-badge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 5px 10px;
+}
+
+.tx-recharge {
+  background: #dff3ea;
+  color: #146346;
+}
+
+.tx-consume {
+  background: #fde4df;
+  color: #9b2e1c;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 860px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -338,7 +389,8 @@ th {
 
   .stat-grid,
   .billing-grid,
-  .two-column {
+  .two-column,
+  .filter-panel {
     grid-template-columns: 1fr;
   }
 }
