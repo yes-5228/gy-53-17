@@ -32,13 +32,29 @@ const totalRecharge = computed(
 const totalConsume = computed(
   () => filteredTransactions.value.filter((t) => t.type === "consume").reduce((sum, t) => sum + t.amount, 0).toFixed(2)
 );
+const totalOpen = computed(
+  () => filteredTransactions.value.filter((t) => t.type === "open").length
+);
 
 function formatType(type) {
-  return type === "recharge" ? "充值" : "消费";
+  if (type === "recharge") return "充值";
+  if (type === "consume") return "消费";
+  if (type === "open") return "开户";
+  return type;
 }
 
 function getTypeClass(type) {
-  return type === "recharge" ? "tx-recharge" : "tx-consume";
+  if (type === "recharge") return "tx-recharge";
+  if (type === "consume") return "tx-consume";
+  if (type === "open") return "tx-open";
+  return "";
+}
+
+function formatAmount(tx) {
+  if (tx.type === "recharge") return `+¥${tx.amount}`;
+  if (tx.type === "consume") return `-¥${tx.amount}`;
+  if (tx.type === "open") return "¥0";
+  return `¥${tx.amount}`;
 }
 
 onMounted(loadData);
@@ -80,6 +96,7 @@ onMounted(loadData);
       <label>按类型筛选
         <select v-model="filterForm.type">
           <option value="">全部类型</option>
+          <option value="open">开户</option>
           <option value="recharge">充值</option>
           <option value="consume">消费</option>
         </select>
@@ -110,7 +127,7 @@ onMounted(loadData);
                 <span class="tx-badge" :class="getTypeClass(tx.type)">{{ formatType(tx.type) }}</span>
               </td>
               <td :class="getTypeClass(tx.type)">
-                {{ tx.type === "recharge" ? "+" : "-" }}¥{{ tx.amount }}
+                {{ formatAmount(tx) }}
               </td>
               <td>¥{{ tx.balance_after }}</td>
               <td>{{ tx.related_order_id ? `#${tx.related_order_id}` : "-" }}</td>

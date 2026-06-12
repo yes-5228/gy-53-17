@@ -391,6 +391,82 @@ th {
   color: #9b2e1c;
 }
 
+.tx-open {
+  background: #e7edf8;
+  color: #244384;
+}
+
+.settlement-card {
+  background: linear-gradient(135deg, #115b48 0%, #157f63 100%);
+  border-radius: 14px;
+  color: white;
+  padding: 18px 22px;
+  box-shadow: 0 10px 25px rgba(17, 91, 72, 0.2);
+  margin-bottom: 8px;
+}
+
+.settlement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 16px;
+}
+
+.settlement-header strong {
+  font-size: 17px;
+}
+
+.settlement-header .small-button {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: none;
+}
+
+.settlement-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+}
+
+.settlement-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 14px;
+}
+
+.settlement-row span {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.settlement-row strong {
+  font-size: 15px;
+}
+
+.settlement-total {
+  grid-column: 1 / -1;
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+  margin-top: 4px;
+  padding-top: 12px;
+  font-size: 16px;
+}
+
+.settlement-total strong {
+  font-size: 22px;
+}
+
+.settlement-card .deduct-text {
+  color: #ffd2c6;
+}
+
+.settlement-card .balance-positive {
+  color: #d5f2e3;
+}
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -416,7 +492,8 @@ button:disabled {
   .stat-grid,
   .billing-grid,
   .two-column,
-  .filter-panel {
+  .filter-panel,
+  .settlement-body {
     grid-template-columns: 1fr;
   }
 }

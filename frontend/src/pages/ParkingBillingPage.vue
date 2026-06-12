@@ -56,18 +56,16 @@ async function calculate() {
   quote.value = await parkingApi.calculate(calcForm);
 }
 
+function dismissSettlement() {
+  lastSettlement.value = null;
+}
+
 async function closeOrder(order) {
   const result = await parkingApi.exit(order.id, {
     exit_time: new Date().toISOString().slice(0, 16),
     use_stored_value: useStoredValue.value,
   });
   lastSettlement.value = result;
-  const deducted = result.stored_value_deducted ?? 0;
-  if (deducted > 0) {
-    message.value = `${order.plate_number} 已结算，原价 ¥${result.original_amount}，储值抵扣 ¥${deducted}，实付 ¥${result.amount}，账户剩余 ¥${result.remaining_balance}`;
-  } else {
-    message.value = `${order.plate_number} 已结算，金额 ¥${result.amount}`;
-  }
   await loadData();
 }
 
@@ -145,6 +143,39 @@ onMounted(loadData);
         </table>
       </div>
     </section>
+
+    <div v-if="lastSettlement" class="settlement-card">
+      <div class="settlement-header">
+        <strong>离场结算完成</strong>
+        <button class="small-button" type="button" @click="dismissSettlement">关闭</button>
+      </div>
+      <div class="settlement-body">
+        <div class="settlement-row">
+          <span>车牌</span>
+          <strong>{{ lastSettlement.plate_number }}</strong>
+        </div>
+        <div class="settlement-row">
+          <span>订单</span>
+          <strong>#{{ lastSettlement.id }}</strong>
+        </div>
+        <div class="settlement-row">
+          <span>原价</span>
+          <strong>¥{{ lastSettlement.original_amount ?? lastSettlement.amount ?? 0 }}</strong>
+        </div>
+        <div class="settlement-row">
+          <span>储值抵扣</span>
+          <strong class="deduct-text">-¥{{ lastSettlement.stored_value_deducted ?? 0 }}</strong>
+        </div>
+        <div class="settlement-row settlement-total">
+          <span>实付金额</span>
+          <strong>¥{{ lastSettlement.amount ?? 0 }}</strong>
+        </div>
+        <div v-if="(lastSettlement.remaining_balance ?? null) !== null" class="settlement-row">
+          <span>账户剩余余额</span>
+          <strong class="balance-positive">¥{{ lastSettlement.remaining_balance }}</strong>
+        </div>
+      </div>
+    </div>
 
     <section v-if="paidOrders.length > 0" class="table-section">
       <h3>已结算订单</h3>
