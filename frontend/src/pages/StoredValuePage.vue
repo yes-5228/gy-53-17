@@ -75,6 +75,10 @@ onMounted(loadData);
         <strong>{{ filteredTransactions.length }}</strong>
       </div>
       <div class="stat-card">
+        <span>开户笔数</span>
+        <strong class="tx-open">{{ totalOpen }}</strong>
+      </div>
+      <div class="stat-card">
         <span>充值总额</span>
         <strong class="tx-recharge">¥{{ totalRecharge }}</strong>
       </div>

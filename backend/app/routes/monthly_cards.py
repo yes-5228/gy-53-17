@@ -98,9 +98,9 @@ def create_card():
                     """
                     INSERT INTO stored_value_transactions
                         (account_id, plate_number, type, amount, balance_after, remark, created_at)
-                    VALUES (?, ?, 'open', 0, ?, ?, datetime('now', 'localtime'))
+                    VALUES (?, ?, 'open', 0, 0, ?, datetime('now', 'localtime'))
                     """,
-                    (account_id, data["plate_number"], initial_balance, "办卡自动开通储值账户"),
+                    (account_id, data["plate_number"], "办卡自动开通储值账户"),
                 )
                 if initial_balance > 0:
                     conn.execute(
