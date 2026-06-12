@@ -14,9 +14,11 @@ def _attach_balance(conn, cards):
         f"SELECT * FROM stored_value_accounts WHERE plate_number IN ({placeholders})",
         plates,
     ).fetchall()
-    balance_map = {a["plate_number"]: a["balance"] for a in accounts}
+    account_map = {a["plate_number"]: a for a in accounts}
     for card in cards:
-        card["balance"] = balance_map.get(card["plate_number"], 0)
+        acct = account_map.get(card["plate_number"])
+        card["balance"] = acct["balance"] if acct else 0
+        card["account_opened"] = acct is not None
     return cards
 
 
@@ -58,12 +60,13 @@ def create_card():
             )
             row = conn.execute("SELECT * FROM monthly_cards WHERE id = ?", (cur.lastrowid,)).fetchone()
 
-            if initial_balance > 0:
-                existing = conn.execute(
-                    "SELECT * FROM stored_value_accounts WHERE plate_number = ?",
-                    (data["plate_number"],),
-                ).fetchone()
-                if existing:
+            existing = conn.execute(
+                "SELECT * FROM stored_value_accounts WHERE plate_number = ?",
+                (data["plate_number"],),
+            ).fetchone()
+            if existing:
+                account_id = existing["id"]
+                if initial_balance > 0:
                     new_balance = round(existing["balance"] + initial_balance, 2)
                     conn.execute(
                         """
@@ -73,34 +76,41 @@ def create_card():
                         """,
                         (new_balance, existing["id"]),
                     )
-                    account_id = existing["id"]
-                else:
-                    acc_cur = conn.execute(
+                    conn.execute(
                         """
-                        INSERT INTO stored_value_accounts
-                            (plate_number, balance, created_at, updated_at)
-                        VALUES (?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
+                        INSERT INTO stored_value_transactions
+                            (account_id, plate_number, type, amount, balance_after, remark, created_at)
+                        VALUES (?, ?, 'recharge', ?, ?, ?, datetime('now', 'localtime'))
                         """,
-                        (data["plate_number"], initial_balance),
+                        (account_id, data["plate_number"], initial_balance, new_balance, "办卡时储值"),
                     )
-                    account_id = acc_cur.lastrowid
-                    new_balance = initial_balance
-
-                conn.execute(
+            else:
+                acc_cur = conn.execute(
                     """
-                    INSERT INTO stored_value_transactions
-                        (account_id, plate_number, type, amount, balance_after, remark, created_at)
-                    VALUES (?, ?, 'recharge', ?, ?, ?, datetime('now', 'localtime'))
+                    INSERT INTO stored_value_accounts
+                        (plate_number, balance, created_at, updated_at)
+                    VALUES (?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))
                     """,
-                    (account_id, data["plate_number"], initial_balance, new_balance, "办卡时储值"),
+                    (data["plate_number"], initial_balance),
                 )
+                account_id = acc_cur.lastrowid
+                if initial_balance > 0:
+                    conn.execute(
+                        """
+                        INSERT INTO stored_value_transactions
+                            (account_id, plate_number, type, amount, balance_after, remark, created_at)
+                        VALUES (?, ?, 'recharge', ?, ?, ?, datetime('now', 'localtime'))
+                        """,
+                        (account_id, data["plate_number"], initial_balance, initial_balance, "办卡时储值"),
+                    )
     except Exception as exc:
         if "UNIQUE" in str(exc):
             return {"message": "该车牌已办理月卡"}, 409
         raise
 
     result = dict(row)
-    result["balance"] = initial_balance if initial_balance > 0 else 0
+    result["balance"] = initial_balance
+    result["account_opened"] = True
     return result, 201
 
 

@@ -73,7 +73,8 @@ def close_order(order_id):
             return {"message": "订单已结算"}, 409
 
         bill = calculate_fee(order["entry_time"], exit_time)
-        amount = bill["amount"]
+        original_amount = bill["amount"]
+        amount = original_amount
         stored_value_deducted = 0
         remaining_balance = None
 
@@ -113,10 +114,10 @@ def close_order(order_id):
         conn.execute(
             """
             UPDATE parking_orders
-            SET exit_time = ?, duration_hours = ?, amount = ?, status = 'paid'
+            SET exit_time = ?, duration_hours = ?, original_amount = ?, stored_value_deducted = ?, amount = ?, status = 'paid'
             WHERE id = ?
             """,
-            (exit_time, bill["duration_hours"], amount, order_id),
+            (exit_time, bill["duration_hours"], original_amount, stored_value_deducted, amount, order_id),
         )
         conn.execute(
             """
@@ -129,7 +130,5 @@ def close_order(order_id):
         row = conn.execute("SELECT * FROM parking_orders WHERE id = ?", (order_id,)).fetchone()
 
     result = dict(row)
-    result["stored_value_deducted"] = stored_value_deducted
     result["remaining_balance"] = remaining_balance
-    result["original_amount"] = bill["amount"]
     return result

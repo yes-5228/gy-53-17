@@ -52,6 +52,8 @@ def init_db():
                 entry_time TEXT NOT NULL,
                 exit_time TEXT,
                 duration_hours REAL,
+                original_amount REAL,
+                stored_value_deducted REAL,
                 amount REAL,
                 status TEXT NOT NULL
             );

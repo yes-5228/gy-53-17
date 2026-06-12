@@ -21,10 +21,11 @@ const calcForm = reactive({
 
 const freeSpaces = computed(() => spaces.value.filter((space) => ["free", "reserved"].includes(space.status)));
 const parkingOrders = computed(() => orders.value.filter((order) => order.status === "parking"));
+const paidOrders = computed(() => orders.value.filter((order) => order.status === "paid"));
 
 function getBalance(plateNumber) {
   const card = cards.value.find((c) => c.plate_number === plateNumber);
-  return card ? card.balance || 0 : 0;
+  return card ? (card.balance ?? 0) : 0;
 }
 
 async function loadData() {
@@ -61,8 +62,9 @@ async function closeOrder(order) {
     use_stored_value: useStoredValue.value,
   });
   lastSettlement.value = result;
-  if (result.stored_value_deducted > 0) {
-    message.value = `${order.plate_number} 已结算，原价 ¥${result.original_amount}，储值抵扣 ¥${result.stored_value_deducted}，实付 ¥${result.amount}，账户剩余 ¥${result.remaining_balance}`;
+  const deducted = result.stored_value_deducted ?? 0;
+  if (deducted > 0) {
+    message.value = `${order.plate_number} 已结算，原价 ¥${result.original_amount}，储值抵扣 ¥${deducted}，实付 ¥${result.amount}，账户剩余 ¥${result.remaining_balance}`;
   } else {
     message.value = `${order.plate_number} 已结算，金额 ¥${result.amount}`;
   }
@@ -138,6 +140,45 @@ onMounted(loadData);
               </td>
               <td><StatusBadge :status="order.status" /></td>
               <td><button class="small-button" type="button" @click="closeOrder(order)">离场结算</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section v-if="paidOrders.length > 0" class="table-section">
+      <h3>已结算订单</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>订单</th>
+              <th>车牌</th>
+              <th>车位</th>
+              <th>入场时间</th>
+              <th>离场时间</th>
+              <th>原价</th>
+              <th>储值抵扣</th>
+              <th>实付金额</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in paidOrders" :key="order.id">
+              <td>#{{ order.id }}</td>
+              <td>{{ order.plate_number }}</td>
+              <td>{{ order.space_code }}</td>
+              <td>{{ order.entry_time }}</td>
+              <td>{{ order.exit_time }}</td>
+              <td>¥{{ order.original_amount ?? order.amount ?? 0 }}</td>
+              <td>
+                <span v-if="(order.stored_value_deducted ?? 0) > 0" class="deduct-text">
+                  -¥{{ order.stored_value_deducted }}
+                </span>
+                <span v-else>¥0</span>
+              </td>
+              <td><strong>¥{{ order.amount ?? 0 }}</strong></td>
+              <td><StatusBadge :status="order.status" /></td>
             </tr>
           </tbody>
         </table>

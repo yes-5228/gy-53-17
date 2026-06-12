@@ -96,7 +96,7 @@ onMounted(loadCards);
           <label>月卡费用<input v-model.number="form.fee" type="number" min="0" required /></label>
           <label>初始储值金额
             <input v-model.number="form.initial_balance" type="number" min="0" />
-            <span class="hint-text">办卡时一并充值，可选</span>
+            <span class="hint-text">办卡自动开通储值账户，可在此预充值</span>
           </label>
           <button class="primary-button" type="submit">办理月卡</button>
           <p v-if="message" class="hint-text">{{ message }}</p>
@@ -115,7 +115,7 @@ onMounted(loadCards);
             <select v-model="rechargeForm.plate_number">
               <option value="">请选择车牌</option>
               <option v-for="card in cards" :key="card.id" :value="card.plate_number">
-                {{ card.plate_number }} - {{ card.holder_name }} (余额 ¥{{ card.balance || 0 }})
+                {{ card.plate_number }} - {{ card.holder_name }} (余额 ¥{{ card.balance ?? 0 }})
               </option>
             </select>
           </label>
@@ -169,9 +169,10 @@ onMounted(loadCards);
               <td>{{ card.start_date }} 至 {{ card.end_date }}</td>
               <td>¥{{ card.fee }}</td>
               <td>
-                <strong :class="{ 'balance-positive': (card.balance || 0) > 0 }">
-                  ¥{{ card.balance || 0 }}
-                </strong>
+                <span v-if="card.account_opened" class="account-opened">
+                  已开通 <strong :class="{ 'balance-positive': (card.balance ?? 0) > 0 }">¥{{ card.balance ?? 0 }}</strong>
+                </span>
+                <span v-else class="account-closed">未开通</span>
               </td>
               <td><StatusBadge :status="card.status" /></td>
               <td>

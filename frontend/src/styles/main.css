@@ -323,6 +323,32 @@ th {
   color: #157f63;
 }
 
+.account-opened {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.account-opened::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #157f63;
+}
+
+.account-closed {
+  color: #9ba8a2;
+  font-size: 13px;
+}
+
+.deduct-text {
+  color: #9b2e1c;
+  font-weight: 700;
+}
+
 .action-group {
   display: flex;
   gap: 8px;
